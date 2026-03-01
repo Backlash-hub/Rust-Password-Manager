@@ -1,5 +1,5 @@
-use std::io;
-use serde::Serialize;
+use std::{fs, io, path::Path};
+use serde::{Deserialize, Serialize};
 
 fn menu() {
     println!("1. New Password");
@@ -47,7 +47,7 @@ fn chose_task(choice: i32) -> bool {
 }
 
 fn add_password() {
-    #[derive(Serialize)]
+    #[derive(Serialize, Deserialize, Debug)]
     struct Entry {
         name: String,
         password: String,
@@ -69,10 +69,26 @@ fn add_password() {
         password: String::from(choice_password),
     };
 
-    let json_string = serde_json::to_string(&new_password).unwrap();
-    println!("Compact JSON: {}", json_string);
-}
+    let path = "output.json";
 
+    let mut entries: Vec<Entry> = if Path::new(path).exists() {
+        let file_contents = fs::read_to_string(path).expect("Failed to read file");
+
+        if file_contents.trim().is_empty() {
+            Vec::new()
+        } else {
+            serde_json::from_str(&file_contents).expect("Failed to parse JSON")
+        }
+    } else {
+        Vec::new()
+    };
+
+    entries.push(new_password);
+
+    let json = serde_json::to_string_pretty(&entries).expect("Failed to convert to JSON");
+
+    fs::write(path, json).expect("Failed to write file");
+}
 fn search_password() {
     println!("SEARCH")
 }
