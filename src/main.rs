@@ -1,5 +1,10 @@
-use std::{fs, io, path::Path};
+use std::{str, fs, io, path::Path};
 use serde::{Deserialize, Serialize};
+use aes_gcm::{
+    aead::{Aead, KeyInit, OsRng},
+    Aes256Gcm, Nonce,
+};
+use aes_gcm::aead::rand_core::RngCore;
 
 fn menu() {
     println!("1. New Password");
@@ -44,6 +49,28 @@ fn chose_task(choice: i32) -> bool {
             true
         }
     }
+}
+
+fn load_or_create_key() -> [u8; 32] {
+    let key_path = "secret.key";
+    if Path::new(&key_path).exists() {
+        
+    }
+}
+
+fn encrypt_password(plain_text: &str, key: &[u8; 32]) -> (String, String) {
+    let cipher = Aes256Gcm::new_from_slice(key).expect("invalid key");
+
+    let mut nonce_bytes = [0u8; 12];
+    OsRng.fill_bytes(&mut nonce_bytes);
+
+    let nonce = Nonce::from_slice(&nonce_bytes);
+
+    let ciphertext = cipher
+        .encrypt(nonce, plain_text.as_bytes())
+        .expect("encryption failed");
+
+    (hex::encode(nonce_bytes), hex::encode(ciphertext))
 }
 
 fn add_password() {
@@ -102,7 +129,9 @@ fn change_password() {
 }
 
 fn exit() {
-    println!("QUIT");
+    println!();
+    println!("Shutting down.....");
+    println!("Thank you for using the vault!");
 }
 
 fn main() {
