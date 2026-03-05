@@ -19,7 +19,7 @@ fn menu() {
     println!("1. New Password");
     println!("2. Search Password");
     println!("3. Remove Password");
-    println!("4. Change Password");
+    println!("4. Update Password");
     println!("5. Quit");
     println!();
 }
@@ -58,12 +58,26 @@ fn chose_task(choice: i32) -> bool {
             }
         }
         3 => {
-            remove_password();
-            true
+            let path = "output.json";
+            if !Path::new(path).exists() {
+                println!();
+                println!("No vault file found.");
+                true
+            } else {
+                remove_password();
+                true
+            }
         }
         4 => {
-            change_password();
-            true
+            let path = "output.json";
+            if !Path::new(path).exists() {
+                println!();
+                println!("No vault file found.");
+                true
+            } else {
+                update_password();
+                true
+            }
         }
         5 => {
             exit();
@@ -145,7 +159,7 @@ fn search_password() {
         serde_json::from_str(&file_contents).expect("Failed to parse JSON");
 
     let found_entry = entries.iter().find(|entry| entry.name == choice_name);
-
+    
     match found_entry {
         Some(entry) => {
             let key = crypto::load_or_create_key();
@@ -165,11 +179,99 @@ fn search_password() {
 }
 
 fn remove_password() {
-    println!("REMOVE")
+    println!();
+    println!("Enter name of password to remove: ");
+    println!();
+
+    let mut choice_name = String::new();
+    io::stdin()
+        .read_line(&mut choice_name)
+        .expect("Failed to read line");
+
+    let choice_name = choice_name.trim();
+    let path = "output.json";
+
+    let file_contents = fs::read_to_string(path).expect("Failed to read file");
+
+    if file_contents.trim().is_empty() {
+        println!("No passwords in vault");
+        return;
+    }
+
+    let mut entries: Vec<Entry> =
+        serde_json::from_str(&file_contents).expect("Failed to parse JSON");
+
+    let found_index = entries.iter().position(|entry| entry.name == choice_name);
+    
+    match found_index {
+        Some(index) => {
+            entries.remove(index);
+            
+            let json = serde_json::to_string_pretty(&entries)
+                .expect("Failed to convert to JSON");
+            fs::write(path, json).expect("Failed to write file");
+            println!("Password removed");
+        }
+        None => {
+            println!("Password not found")
+        }
+    }
 }
 
-fn change_password() {
-    println!("CHANGE")
+fn update_password() {
+    println!();
+    println!("Enter name of password to update: ");
+    println!();
+
+    let mut choice_name = String::new();
+    io::stdin()
+        .read_line(&mut choice_name)
+        .expect("Failed to read line");
+
+    let choice_name = choice_name.trim();
+    let path = "output.json";
+
+    let file_contents = fs::read_to_string(path).expect("Failed to read file");
+
+    if file_contents.trim().is_empty() {
+        println!("No passwords in vault");
+        return;
+    }
+
+    let mut entries: Vec<Entry> =
+        serde_json::from_str(&file_contents).expect("Failed to parse JSON");
+
+    let found_entry = entries.iter_mut().find(|entry| entry.name == choice_name);
+
+    match found_entry {
+        Some(entry) => {
+            let updated_by_date = Local::now();
+            let mut choice_password = String::new();
+
+            println!("Enter your new password: ");
+            io::stdin()
+                .read_line(&mut choice_password)
+                .expect("Failed to read line");
+
+            let choice_password = choice_password.trim();
+            let key = crypto::load_or_create_key();
+            let (nonce_hex, ciphertext) = crypto::encrypt_password(choice_password, &key);
+
+            entry.nonce = nonce_hex;
+            entry.password = ciphertext;
+            entry.updated_by_date = updated_by_date.to_string();
+
+            let json = serde_json::to_string_pretty(&entries)
+                .expect("Failed to convert to JSON");
+
+            fs::write(path, json).expect("Failed to write file");
+
+            println!("Password updated successfully.");
+        }
+        None => {
+            println!("Password not found.");
+        }
+    }
 }
 
 fn exit() {
